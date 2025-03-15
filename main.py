@@ -1,6 +1,11 @@
-def main():
-    print("Hello from aia!")
+from src.util import load_openai_api_key
 
+def main():
+    openai_key = load_openai_api_key()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+
+    except KeyboardInterrupt:
+        print("\nExiting...")
