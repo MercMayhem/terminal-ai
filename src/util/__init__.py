@@ -5,7 +5,9 @@ import requests
 from typing import Optional
 
 def load_openai_api_key() -> str:
-    dotenv.load_dotenv()
+    env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+    env_file.touch(mode=0o600, exist_ok=True)
+    dotenv.load_dotenv(env_file)
 
     openai_key = os.environ.get("OPENAI_KEY")
 
@@ -15,8 +17,6 @@ def load_openai_api_key() -> str:
             print("Invalid api key: Unauthorized")
         openai_key = input("Enter OpenAI key: ")
 
-    env_file = Path(".env")
-    env_file.touch(mode=0o600, exist_ok=True)
     dotenv.set_key(env_file, key_to_set="OPENAI_KEY", value_to_set=openai_key)
 
     return openai_key
