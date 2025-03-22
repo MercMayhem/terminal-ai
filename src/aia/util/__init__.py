@@ -18,7 +18,7 @@ def load_openai_api_key() -> str:
     # Place OpenAI key in .env if not present also check validity
     valid: Optional[bool] = None
     while not openai_key or not (valid := is_openai_key_valid(openai_key)):
-        if valid == False:
+        if not valid and valid is not None:
             print("Invalid api key: Unauthorized")
         openai_key = input("Enter OpenAI key: ")
 

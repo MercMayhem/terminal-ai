@@ -8,7 +8,7 @@ def start_workflow(key: str) -> None:
         human_input_mode="ALWAYS",
     )
 
-    result = info_collector.initiate_chats(
+    _ = info_collector.initiate_chats(
         chat_queue=[
             {
                 "recipient": the_human,
