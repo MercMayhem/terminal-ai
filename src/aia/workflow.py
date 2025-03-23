@@ -1,4 +1,4 @@
-from autogen import ConversableAgent
+from autogen import ConversableAgent, GroupChat, GroupChatManager
 from .agents.info_collector import InfoCollectorAgent
 
 def start_workflow(key: str) -> None:
@@ -8,41 +8,52 @@ def start_workflow(key: str) -> None:
         human_input_mode="ALWAYS",
     )
 
-    _ = info_collector.initiate_chats(
-        chat_queue=[
+    groupchat = GroupChat(
+        agents=[
+            the_human,
+            info_collector,
+            info_collector.executor,
+            info_collector.reviewer,
+            info_collector.formatter
+        ],
+        speaker_selection_method="auto",
+        messages=[],
+    )
+
+    llm_config = {
+        "config_list": [
             {
-                "recipient": the_human,
-                "message": "what do you need help with?",
-                "max_turns": 2,
+                
+                "api_type": "openai",
+                "model": "gpt-4o-mini",
+                "api_key": key
+            }
+        ]
+    }
+
+    manager = GroupChatManager(
+        name="group_manager",
+        groupchat=groupchat,
+        llm_config=llm_config,
+    )
+
+    query = input()
+
+    result = the_human.initiate_chats(
+        chat_queue = [
+            {
+                "recipient": manager,
+                "message": "Collect info for getting this help: {}".format(query),
                 "summary_method": "reflection_with_llm"
             },
 
             {
-                "recipient": info_collector.executor,
-                "message": "help me execute some tools",
-                "max_turns": 3,
-                "summary_method": "reflection_with_llm"
-            },
-
-            {
-                "recipient": info_collector.reviewer,
-                "message": "review my work",
-                "max_turns": 1,
-                "summary_method": "reflection_with_llm"
-            },
-
-            {
-                "recipient": info_collector.executor,
-                "message": "help me execute some tools",
-                "max_turns": 3,
-                "summary_method": "reflection_with_llm"
-            },
-
-            {
-                "recipient": info_collector.reviewer,
-                "message": "review my work",
-                "max_turns": 1,
-                "summary_method": "reflection_with_llm"
-            },
+                "recipient": info_collector.formatter,
+                "message": "format the info",
+                "max_turn": 1,
+                "summary_method": "last_msg"
+            }
         ]
     )
+
+    print(result[-1].summary)

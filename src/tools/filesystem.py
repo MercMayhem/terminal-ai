@@ -1,3 +1,5 @@
+import subprocess
+from typing import Optional
 from autogen.tools import Tool
 import os
 import glob
@@ -72,4 +74,18 @@ file_search_tool = Tool(
     name="search_files",
     description="Search for files matching a pattern in a directory (supports wildcards).",
     func_or_tool=search_files
+)
+
+def show_directory_tree(path: str) -> Optional[str]:
+    try:
+        result = subprocess.run(["tree", path], text=True)
+        return result.stdout
+    
+    except Exception:
+        return None
+
+show_directory_tree_tool = Tool(
+    name="show_directory_ascii_tree",
+    description="Show an ascii tree of directory. directory path is an argument.",
+    func_or_tool=show_directory_tree
 )

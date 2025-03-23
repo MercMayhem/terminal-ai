@@ -1,6 +1,7 @@
 from autogen import ConversableAgent
+from ..models import InfoCollectorOutput
 from tools.shell import check_command_tool
-from tools.filesystem import read_file_tool, get_current_directory_tool, list_directory_tool, file_search_tool
+from tools.filesystem import read_file_tool, get_current_directory_tool, list_directory_tool, file_search_tool, show_directory_tree_tool
 
 # Subtyping for abstracting over tool registration and llm_config
 class InfoCollectorAgent(ConversableAgent):
@@ -24,22 +25,45 @@ class InfoCollectorAgent(ConversableAgent):
                 Your primary role is to accurately understand user queries, gather all relevant
                 information about the execution context (e.g., system state, environment variables,
                 resource availability, user intent), and provide this information to the plan
-                creator agent. Be thorough and investigate all possible angles and edge cases
-                related to the query. Do not assume anything—always verify the information from
-                reliable sources or system state before passing it to the plan creator agent.
-                Collect both high-level and low-level details to ensure the plan creator agent
-                has a complete picture. Prioritize accuracy and relevance—filter out noise and
-                ambiguity while ensuring the information covers the full execution context.
-                Your goal is to enable the plan creator agent to generate a flawless execution
-                plan by providing complete and reliable information.
+                creator agent.
+
+                You run in a loop of Thought, Action, PAUSE, Observation.
+
+                Keep looping this part:
+                    Thought: This is you describing your thoughts about the query / question asked by the user and info
+                    you have already gathered.
+
+                    Action: This is you making tool calls for gathering info and / or consulting other agents.
+
+                    PAUSE: You will yield here for a response.
+
+                    Observation: Observe the outcomes and provide the info
+
+                Always tag if it is a thought or observation before the thought or observation.
+                You can always consult the following:
+                    - the user / human (to get info from user. Remember to use this less.),
+                    - the reviewer (to get a review on your work so far, remember to use this atleast once),
+                    - the executor (to execute your tools)
+
+                Example Session(print this stuff out. things in <> are my comments not how you should actually put in there):
+                message: Put all videos in this directory in a seperate folder in this directory
+
+                Thought: I should find videos in this directory.
+                Action: <You execute your action here>
+                PAUSE
+
+                <Yields to other agent>
+
+                Observation: ... are videos in this directory
             """
         )
 
-        read_file_tool.register_tool(self)
-        list_directory_tool.register_tool(self)
-        file_search_tool.register_tool(self)
-        get_current_directory_tool.register_tool(self)
-        check_command_tool.register_tool(self)
+        read_file_tool.register_for_llm(self)
+        list_directory_tool.register_for_llm(self)
+        file_search_tool.register_for_llm(self)
+        get_current_directory_tool.register_for_llm(self)
+        check_command_tool.register_for_llm(self)
+        show_directory_tree_tool.register_for_llm(self)
 
         self.executor = ConversableAgent(
             name="InfoCollectorExecutorAgent",
@@ -81,3 +105,25 @@ class InfoCollectorAgent(ConversableAgent):
         get_current_directory_tool.register_for_execution(self.reviewer)
         check_command_tool.register_for_execution(self.reviewer)
 
+        llm_config_structured = {
+            "config_list": [
+                {
+                    
+                    "api_type": "openai",
+                    "model": "gpt-4o-mini",
+                    "api_key": key,
+                    "response_format": InfoCollectorOutput
+                }
+            ]
+        }
+
+        self.formatter = ConversableAgent(
+            name="InfoCollectorFormatter",
+            description="The final agent which will run and format all collected info",
+            llm_config=llm_config_structured,
+            system_message="""
+                You are responsible for formatting all information and context
+                you have understood from the conversation. You are the final agent
+                that will be run
+            """
+        )
