@@ -1,12 +1,16 @@
-from autogen import ConversableAgent
+from copy import deepcopy
+from autogen import ConversableAgent, GroupChat, GroupChatManager
 from ..models import InfoCollectorOutput
 from tools.shell import check_command_tool
 from tools.filesystem import read_file_tool, get_current_directory_tool, list_directory_tool, file_search_tool, show_directory_tree_tool
 
 # Subtyping for abstracting over tool registration and llm_config
 class InfoCollectorAgent(ConversableAgent):
+
     def __init__(self, key: str) -> None:
-        llm_config = {
+        self.key = key
+
+        self.llm_config = {
             "config_list": [
                 {
                     
@@ -16,6 +20,8 @@ class InfoCollectorAgent(ConversableAgent):
                 }
             ]
         }
+
+        llm_config = deepcopy(self.llm_config)
 
         super().__init__(
             name="InfoCollectorAgent",
@@ -127,3 +133,57 @@ class InfoCollectorAgent(ConversableAgent):
                 that will be run
             """
         )
+
+
+    def run_pipeline(self, query: str) -> InfoCollectorOutput:
+        llm_config = {
+            "config_list": [
+                {
+                    
+                    "api_type": "openai",
+                    "model": "gpt-4o-mini",
+                    "api_key": self.key
+                }
+            ]
+        }
+
+        the_human = ConversableAgent(
+            name="human",
+            human_input_mode="ALWAYS",
+        )
+
+        groupchat = GroupChat(
+            agents=[
+                the_human,
+                self,
+                self.executor,
+                self.reviewer,
+                self.formatter
+            ],
+            speaker_selection_method="auto",
+            messages=[],
+        )
+
+        manager = GroupChatManager(
+            name="group_manager",
+            groupchat=groupchat,
+            llm_config=llm_config,
+        )
+
+        result = the_human.initiate_chats(
+            chat_queue = [
+                {
+                    "recipient": manager,
+                    "message": "Collect info for getting this help: {}".format(query),
+                    "summary_method": "reflection_with_llm"
+                },
+
+                {
+                    "recipient": self.formatter,
+                    "max_turn": 1,
+                    "summary_method": "last_msg"
+                }
+            ]
+        )
+
+        return InfoCollectorOutput.model_validate_json(result[-1])
