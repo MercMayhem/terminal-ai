@@ -186,4 +186,4 @@ class InfoCollectorAgent(ConversableAgent):
             ]
         )
 
-        return InfoCollectorOutput.model_validate_json(result[-1])
+        return InfoCollectorOutput.model_validate_json(result[-1].summary)
