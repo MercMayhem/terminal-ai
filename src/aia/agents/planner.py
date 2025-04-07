@@ -1,5 +1,5 @@
 from autogen import ConversableAgent
-from ..models import PlannerOutputs
+from ..models import PlannerOutputs, PlannerScriptmakerOutput
 import json
 from pydantic import parse_obj_as
 
@@ -34,8 +34,50 @@ class PlannerAgent(ConversableAgent):
             """
         )
 
-    def run_pipeline(self, information: str) -> PlannerOutputs:
-        result = self.run(f"Info collected: {information}", summary_method="last_msg")
-        summary_data = json.loads(result.summary)
-        return parse_obj_as(PlannerOutputs, summary_data)
+        llm_config = {
+            "config_list": [
+                {
+                    "api_type": "openai",
+                    "model": "gpt-4o-mini",
+                    "api_key": key,
+                    "response_format": PlannerScriptmakerOutput
+                }
+            ]
+        }
+
+        self.scriptmaker = ConversableAgent(
+            name="PlannerScriptmaker",
+            description="Takes the output of the planner and incorporates commands and its plans to a bash script",
+            llm_config=llm_config,
+            system_message="""
+                You are responsible for taking in the output of the planner
+                and integrating its steps into a bash script
+            """
+        )
+
+    def run_pipeline(self, information: str) -> PlannerScriptmakerOutput:
+        # result = self.run(f"Info collected: {information}", summary_method="last_msg")
+        the_human = ConversableAgent(
+            name="human",
+            human_input_mode="ALWAYS",
+        )
+
+        result = the_human.initiate_chats(
+            chat_queue = [
+                {
+                    "recipient": self,
+                    "message": f"Info collected: {information}",
+                    "summary_method": "last_msg"
+                },
+
+                {
+                    "recipient": self.scriptmaker,
+                    "message": "create the script",
+                    "summary_method": "last_msg"
+                },
+            ]
+        )
+
+        summary_data = json.loads(result[-1].summary)
+        return parse_obj_as(PlannerScriptmakerOutput, summary_data)
 

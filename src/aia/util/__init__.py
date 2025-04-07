@@ -3,6 +3,7 @@ import dotenv
 from pathlib import Path
 import requests
 from typing import Optional
+import subprocess
 
 def load_openai_api_key() -> str:
 
@@ -38,3 +39,10 @@ def is_openai_key_valid(key: str) -> bool:
     if response.status_code == 401:
         return False
     return True
+
+def run_bash_script(script: str) -> None:
+    process = subprocess.Popen(["bash", "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if process.stdout is not None:
+        for line in process.stdout:
+            print(line, end="")  # Print in real-time

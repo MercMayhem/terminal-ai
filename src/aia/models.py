@@ -10,3 +10,6 @@ class PlannerSteps(BaseModel):
 
 class PlannerOutputs(BaseModel):
     steps: List[PlannerSteps]
+
+class PlannerScriptmakerOutput(BaseModel):
+    script: str
